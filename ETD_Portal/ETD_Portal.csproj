@@ -11,19 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="HR_Management\BLL\Classes\" />
-    <Folder Include="HR_Management\BLL\Interfaces\" />
-    <Folder Include="HR_Management\DAL\Classes\" />
-    <Folder Include="HR_Management\DAL\Interfaces\" />
     <Folder Include="Reimbursement\BLL\" />
     <Folder Include="Reimbursement\DAL\" />
     <Folder Include="Reimbursement\DTOs\" />
     <Folder Include="Reservations\BLL\" />
     <Folder Include="Reservations\DAL\" />
     <Folder Include="Reservations\DTOs\" />
-    <Folder Include="TravelPlanner\BLL\" />
-    <Folder Include="TravelPlanner\DAL\" />
-    <Folder Include="TravelPlanner\DTOs\" />
   </ItemGroup>
 
 </Project>
