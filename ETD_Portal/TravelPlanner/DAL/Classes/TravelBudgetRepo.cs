@@ -1,4 +1,6 @@
-﻿using ETD_Portal.TravelPlanner.DAL.Interfaces;
+﻿using ETD_Portal.Data;
+using ETD_Portal.Models;
+using ETD_Portal.TravelPlanner.DAL.Interfaces;
 
 namespace ETD_Portal.TravelPlanner.DAL.Classes
 {

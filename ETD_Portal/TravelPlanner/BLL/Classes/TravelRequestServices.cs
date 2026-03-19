@@ -1,4 +1,5 @@
 ﻿using ETD_Portal.HR_Management.DAL.Interfaces;
+using ETD_Portal.Models;
 using ETD_Portal.TravelPlanner.BLL.Interfaces;
 using ETD_Portal.TravelPlanner.DAL.Interfaces;
 using ETD_Portal.TravelPlanner.DTOs.RequestDTO;
@@ -24,7 +25,7 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
 
         public static TravelRequest RequestDtoToEntity(TravelRequestDTO travelRequestDTO)
         {
-            if (travelRequestDTO.from_date <= DateOnly.FromDateTime(DateTime.Now))
+            if (travelRequestDTO.from_date < DateOnly.FromDateTime(DateTime.Now))
                 throw new ArgumentException("FromDate must be greater than today's date.");
 
             if (travelRequestDTO.to_date <= travelRequestDTO.from_date)

@@ -1,4 +1,8 @@
-﻿using ETD_Portal.HR_Management.DAL.Interfaces;
+﻿using ETD_Portal.Data;
+using ETD_Portal.HR_Management.DAL.Interfaces;
+using ETD_Portal.HR_Management.DTOs.ResponseDTO;
+using ETD_Portal.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ETD_Portal.HR_Management.DAL.Classes
 {
@@ -13,9 +17,14 @@ namespace ETD_Portal.HR_Management.DAL.Classes
 
         public async Task<User> AddEmployee(User user)
         {
-            var savedUser = await _context.Users.AddAsync(user);
+            await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
-            return savedUser.Entity;
+
+            return await _context.Users
+                    .Include(u => u.CurrentGrade)
+                    .FirstAsync(u => u.EmployeeId == user.EmployeeId);
+
+
         }
 
         public async Task<IEnumerable<User>> GetAllEmployee()
@@ -26,13 +35,16 @@ namespace ETD_Portal.HR_Management.DAL.Classes
                                  .ToListAsync();
         }
 
-        public async Task<User> GetEmployeeById(int? employeeId)
+        
+        public async Task<User> GetEmployeeById(int employeeId)
         {
-            var empData = await _context.Users
-                                        .Include(u => u.CurrentGrade)
-                                        .FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+            var empData = await _context.Users.Include(u => u.CurrentGrade).FirstOrDefaultAsync(U => U.EmployeeId == employeeId);
+
             if (empData == null)
+            {
                 throw new KeyNotFoundException($"Employee with ID {employeeId} not found.");
+            }
+
             return empData;
         }
 
@@ -47,16 +59,18 @@ namespace ETD_Portal.HR_Management.DAL.Classes
 
         public async Task<bool> DeleteEmployeeById(int id)
         {
-            var employee = await _context.Users.FirstOrDefaultAsync(u => u.EmployeeId == id);
+            User employee = _context.Users.Find(id);
             if (employee == null)
                 throw new KeyNotFoundException($"Employee with ID {id} not found.");
 
             // Delete related grade histories first to avoid FK constraint error
-            var gradeHistories = _context.GradeHistories.Where(gh => gh.EmployeeId == id);
+            var gradeHistories = await _context.GradeHistories.Where(gh => gh.EmployeeId == id).ToListAsync();
             _context.GradeHistories.RemoveRange(gradeHistories);
             _context.Users.Remove(employee);
             await _context.SaveChangesAsync();
             return true;
         }
+
+        
     }
 }

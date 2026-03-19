@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ETD_Portal.Reservation_Mgmt.BLL.Interfaces;
+using ETD_Portal.Reservation_Mgmt.DTOs.RequestDTO;
+using ETD_Portal.Reservation_Mgmt.DTOs.ResponseDTO;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Reservation_Managmeent_App.BLL.ReservationDocs;
-using Reservation_Managmeent_App.BLL.Reservations;
-using Reservation_Managmeent_App.BLL.ReservationTypes;
-using Reservation_Managmeent_App.DTOs.ReservationsDTO;
+
 
 namespace ETD_Portal.Controllers
 {
@@ -11,39 +11,55 @@ namespace ETD_Portal.Controllers
     [ApiController]
     public class Reservation_ServicesController : ControllerBase
     {
-        private readonly IReservationTypeService _reservationTypeService;
-        private readonly IReservationService _reservationService;
-        private readonly IReservationDocsService _reservationDocsService;
-        private readonly IReservationDocsService _reservationDocsServices;
+        private readonly IReservationTypeServices _reservationTypeService;
+        private readonly IReservationServices _reservationService;
+        private readonly IReservationDocServices _reservationDocService;
 
-        public Reservation_ServicesController(IReservationTypeService _reservationTypeService, IReservationService _reservationService, IReservationDocsService _reservationDocsService, IReservationDocsService reservationDocsServices)
+        public Reservation_ServicesController(IReservationTypeServices _reservationTypeService, IReservationServices _reservationService, IReservationDocServices _reservationDocService)
         {
             this._reservationTypeService = _reservationTypeService;
             this._reservationService = _reservationService;
-            this._reservationDocsService = _reservationDocsService;
-            _reservationDocsServices = reservationDocsServices;
-            this._reservationDocsServices = _reservationDocsServices;
+            this._reservationDocService = _reservationDocService;
         }
+
 
         [HttpGet("types")]
 
-        public async Task<IActionResult> GetReservationType()
+        public async Task<ActionResult<List<ReservationTypeResponseDTO>>> GetReservationType()
         {
-            var result = await _reservationTypeService.GetReservationTypes();
-            return Ok(result);
+            try
+            {
+                var result = await _reservationTypeService.GetReservationTypes();
+
+                if (result == null || !result.Any())
+                    return NotFound("No Reservation found.");
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
+
         [HttpPost("add")]
         [Consumes("multipart/form-data")]
+
         public async Task<IActionResult> AddReservation([FromForm] ReservationRequestDTO addReservation)
         {
+
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             var addedReservation = await _reservationService.AddReservation(addReservation);
-            if (addReservation.File != null)
+            if (addedReservation == null)
+                throw new Exception("Reservation record is not found");
+            if (addReservation.File is not null && addReservation.File.Length > 0)
             {
                 // Use the newly created reservation's Id
                 // to link the document to the reservation
-                await _reservationDocsService
-                    .UploadReservationDocs(
-                        addedReservation.Id,      // ← Id from Step 1
+                await _reservationDocService.UploadReservationDocs(
+                        addedReservation.id,      // ← Id from Step 1
                         addReservation.File);     // ← PDF file
             }
             return Ok(addedReservation);
@@ -83,7 +99,7 @@ namespace ETD_Portal.Controllers
         [HttpGet("{reservationId}/download")]
         public async Task<IActionResult> DownloadReservationDoc(int reservationId)
         {
-            var fileResult = await _reservationDocsServices.GetReservationDoc(reservationId);
+            var fileResult = await _reservationDocService.GetReservationDoc(reservationId);
             if (fileResult == null)
             {
                 return NotFound("Document Not found");

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using ETD_Portal.Models;
+using System.Diagnostics;
 
 namespace ETD_Portal.HR_Management.DAL.Interfaces
 {

@@ -1,8 +1,11 @@
-﻿using ETD_Portal.TravelPlanner.DAL.Interfaces;
+﻿using ETD_Portal.Data;
+using ETD_Portal.Models;
+using ETD_Portal.TravelPlanner.DAL.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ETD_Portal.TravelPlanner.DAL.Classes
 {
-    public class TravelRequestRepo :ITravelRequestRepo
+    public class TravelRequestRepo : ITravelRequestRepo
     {
         private readonly ETDPortalDbContext _context;
 
@@ -15,7 +18,9 @@ namespace ETD_Portal.TravelPlanner.DAL.Classes
         {
             var result = await _context.TravelRequests.AddAsync(travelRequest);
             await _context.SaveChangesAsync();
-            return result.Entity;
+            return await _context.TravelRequests
+                                 .Include(t => t.Location)
+                                 .FirstAsync(t => t.RequestId == travelRequest.RequestId);
         }
 
         public async Task<IEnumerable<TravelRequest>> GetAllPendingRequests(int hrId)
@@ -30,19 +35,19 @@ namespace ETD_Portal.TravelPlanner.DAL.Classes
 
         public async Task<TravelRequest> getTravelRequestById(int trid)
         {
-            var result = await _context.TravelRequests
+            return await _context.TravelRequests
                                        .Include(tr => tr.Location)
                                        .FirstOrDefaultAsync(tr => tr.RequestId == trid);
-            if (result == null)
-                throw new KeyNotFoundException($"Travel request with ID {trid} not found.");
-            return result;
+      
         }
 
         public async Task<TravelRequest> getUpdateRequestStatus(TravelRequest travelRequest)
         {
             _context.Entry(travelRequest).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            return travelRequest;
+            return await _context.TravelRequests
+                                 .Include(tr => tr.Location)
+                                 .FirstAsync(tr => tr.RequestId == travelRequest.RequestId);
         }
     }
 }

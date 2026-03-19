@@ -1,4 +1,5 @@
-﻿using ETD_Portal.TravelPlanner.BLL.Interfaces;
+﻿using ETD_Portal.TravelPlanner.BLL.Classes;
+using ETD_Portal.TravelPlanner.BLL.Interfaces;
 using ETD_Portal.TravelPlanner.DTOs.RequestDTO;
 using ETD_Portal.TravelPlanner.DTOs.ResponseDTO;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,7 @@ namespace ETD_Portal.Controllers
         private readonly ITravelRequestServices _travelRequestService;
         private readonly IBudgetAllocationServices _budgetAllocationServices;
 
-        public TP_ServiceController(
+        public TP_ServicesController(
             ILocationServices locationService,
             ITravelRequestServices travelRequestService,
             IBudgetAllocationServices budgetAllocationServices)

@@ -4,6 +4,6 @@ namespace ETD_Portal.HR_Management.BLL.Interfaces
 {
     public interface IGradeServices
     {
-        Task<IEnumerable<GradesResponseDTO>> GetAllGrades();
+        Task<IEnumerable<GradeResponseDTO>> GetAllGrades();
     }
 }

@@ -13,7 +13,7 @@ namespace ETD_Portal.Controllers
         private readonly IGradeServices _gradeServices;
         private readonly IUserServices _userService;
 
-        public HR_ServiceController(IGradeServices gradeServices, IUserServices userService)
+        public HR_ServicesController(IGradeServices gradeServices, IUserServices userService)
         {
             this._gradeServices = gradeServices;
             this._userService = userService;

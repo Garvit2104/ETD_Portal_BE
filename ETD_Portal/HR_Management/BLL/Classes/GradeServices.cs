@@ -1,4 +1,5 @@
 ﻿using ETD_Portal.HR_Management.BLL.Interfaces;
+using ETD_Portal.HR_Management.DAL.Classes;
 using ETD_Portal.HR_Management.DAL.Interfaces;
 using ETD_Portal.HR_Management.DTOs.ResponseDTO;
 
@@ -8,20 +9,27 @@ namespace ETD_Portal.HR_Management.BLL.Classes
     {
         private readonly IGradeRepo _gradeRepo;
 
-        public GradeServices(IGradeRepo gradeRepo)
+        public GradeServices(IGradeRepo _gradeRepo)
         {
-            this._gradeRepo = gradeRepo;
+            this._gradeRepo = _gradeRepo;
         }
 
-        public async Task<IEnumerable<GradesResponseDTO>> GetAllGrades()
+        public async Task<IEnumerable<GradeResponseDTO>> GetAllGrades()
         {
-            var grades = await _gradeRepo.GetAllGrades();
-            return grades.Select(g => new GradesResponseDTO
+            var result = await _gradeRepo.GetAllGrades();
+
+            List<GradeResponseDTO> ls = new List<GradeResponseDTO>();
+
+            foreach (var item in result)
             {
-                id = g.Id,
-                name = g.Name
-            });
+                GradeResponseDTO gradeResponse = new GradeResponseDTO();
+                gradeResponse.id = item.Id;
+                gradeResponse.name = item.Name;
+                
+                ls.Add(gradeResponse);
+            }
+            return ls;
         }
-    
+
     }
 }

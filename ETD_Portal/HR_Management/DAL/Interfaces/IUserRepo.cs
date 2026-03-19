@@ -1,8 +1,11 @@
-﻿namespace ETD_Portal.HR_Management.DAL.Interfaces
+﻿using ETD_Portal.HR_Management.DTOs.ResponseDTO;
+using ETD_Portal.Models;
+
+namespace ETD_Portal.HR_Management.DAL.Interfaces
 {
     public interface IUserRepo
     {
-        Task<User> AddEmployee(User user);
+        public Task<User> AddEmployee(User user);
 
         public Task<IEnumerable<User>> GetAllEmployee();
 

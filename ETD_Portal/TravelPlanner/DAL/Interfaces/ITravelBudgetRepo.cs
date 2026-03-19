@@ -1,4 +1,6 @@
-﻿namespace ETD_Portal.TravelPlanner.DAL.Interfaces
+﻿using ETD_Portal.Models;
+
+namespace ETD_Portal.TravelPlanner.DAL.Interfaces
 {
     public interface ITravelBudgetRepo
     {

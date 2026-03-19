@@ -1,26 +1,32 @@
-﻿using ETD_Portal.HR_Management.DAL.Interfaces;
+﻿using ETD_Portal.HR_Management.BLL.Interfaces;
+using ETD_Portal.HR_Management.DAL.Interfaces;
+using ETD_Portal.HR_Management.DTOs.ResponseDTO;
+using ETD_Portal.Models;
 using ETD_Portal.TravelPlanner.BLL.Interfaces;
 using ETD_Portal.TravelPlanner.DAL.Interfaces;
 
 namespace ETD_Portal.TravelPlanner.BLL.Classes
 {
-    public class BudgetAllocationServices : IBudgetAllocationSerivces
+    public class BudgetAllocationServices : IBudgetAllocationServices
     {
         private readonly ITravelRequestRepo _travelRequestRepo;
         private readonly ITravelBudgetRepo _travelBudgetRepo;
         private readonly IUserRepo _userRepo;
+       
 
         public BudgetAllocationServices(
             ITravelRequestRepo travelRequestRepo,
             ITravelBudgetRepo travelBudgetRepo,
-            IUserRepo userRepo)
+            IUserRepo userRepo
+            )
         {
             this._travelRequestRepo = travelRequestRepo;
             this._travelBudgetRepo = travelBudgetRepo;
             this._userRepo = userRepo;
+       
         }
 
-        public async Task<int> CalculateApprovedBudget(int? employeeId, string? priority, int days)
+        public async Task<int> CalculateApprovedBudget(int employeeId, string? priority, int days)
         {
             var user = await _userRepo.GetEmployeeById(employeeId);
             if (user == null)
@@ -53,7 +59,7 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
             return days * maxBudgetByGrade;
         }
 
-        public async Task<string> CalculateHotelStarRating(int? employeeId)
+        public async Task<string> CalculateHotelStarRating(int employeeId)
         {
             var user = await _userRepo.GetEmployeeById(employeeId);
             if (user == null)
@@ -81,18 +87,21 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
 
         public async Task AddBudgetAllocation(TravelRequest approvedRequest)
         {
-            int days = approvedRequest.ToDate.DayNumber - approvedRequest.FromDate.DayNumber;
+            if (approvedRequest.RaisedByEmployeeId == null) 
+                throw new ArgumentException("Employee ID cannot be null."); 
+            int employeeId = approvedRequest.RaisedByEmployeeId.Value;
+
+            int days = approvedRequest.ToDate!.Value.DayNumber - approvedRequest.FromDate!.Value.DayNumber;
 
             var travelBudgetAllocation = new TravelBudgetAllocation
             {
                 TravelRequestId = approvedRequest.RequestId,
                 ApprovedBudget = await CalculateApprovedBudget(
-                                            approvedRequest.RaisedByEmployeeId,
+                                            employeeId,
                                             approvedRequest.Priority,
                                             days),
                 ApprovedModeOfTravel = await CalculateModeOfTravel(),
-                ApprovedHotelStarRating = await CalculateHotelStarRating(
-                                            approvedRequest.RaisedByEmployeeId)
+                ApprovedHotelStarRating = await CalculateHotelStarRating(employeeId)
             };
             await _travelBudgetRepo.AddBudgetAllocation(travelBudgetAllocation);
         }
@@ -106,11 +115,20 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
             if (!travelRequest.RequestStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Budget can only be calculated for approved travel requests.");
 
-            int days = travelRequest.ToDate.DayNumber - travelRequest.FromDate.DayNumber;
+            if (travelRequest.RaisedByEmployeeId == null)
+                throw new ArgumentException("Employee Id cannot be null");
+            if (travelRequest.FromDate == null || travelRequest.ToDate == null)
+                throw new ArgumentException("Travel Date cannot be null");
+
+            int employeeId = travelRequest.RaisedByEmployeeId.Value;
+            int days = travelRequest.ToDate.Value.DayNumber - travelRequest.FromDate.Value.DayNumber;
             return await CalculateApprovedBudget(
-                            travelRequest.RaisedByEmployeeId,
+                            employeeId,
                             travelRequest.Priority,
                             days);
         }
+
+        
+        
     }
 }

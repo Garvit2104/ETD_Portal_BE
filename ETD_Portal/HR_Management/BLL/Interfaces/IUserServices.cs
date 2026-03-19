@@ -1,5 +1,6 @@
 ﻿using ETD_Portal.HR_Management.DTOs.RequestDTO;
 using ETD_Portal.HR_Management.DTOs.ResponseDTO;
+using ETD_Portal.Models;
 
 namespace ETD_Portal.HR_Management.BLL.Interfaces
 {
@@ -10,5 +11,6 @@ namespace ETD_Portal.HR_Management.BLL.Interfaces
         Task<UserResponseDTO> GetEmployeeById(int employeeId);
         Task<UserResponseDTO> updateEmployeeById(int id, UserRequestDTO userRequestDTO);
         Task<bool> DeleteEmployeeById(int id);
+        
     }
 }

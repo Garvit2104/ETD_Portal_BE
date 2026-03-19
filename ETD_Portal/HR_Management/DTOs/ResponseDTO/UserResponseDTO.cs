@@ -2,7 +2,7 @@
 {
     public class UserResponseDTO
     {
-        public int employee_id { get; set; }
+        public int? employee_id { get; set; }
 
         public string? first_name { get; set; }
 
@@ -13,6 +13,8 @@
 
         public string? role { get; set; }
 
-        public string current_grade_id { get; set; }
+        public int? current_grade_id { get; set; }
+
+        public string current_grade_name { get; set; }
     }
 }
