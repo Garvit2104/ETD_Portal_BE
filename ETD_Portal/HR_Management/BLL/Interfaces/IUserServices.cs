@@ -8,8 +8,8 @@ namespace ETD_Portal.HR_Management.BLL.Interfaces
     {
         Task<UserResponseDTO> AddEmployee(UserRequestDTO userRequestDTO);
         Task<IEnumerable<UserResponseDTO>> GetAllEmployess();
-        Task<UserResponseDTO> GetEmployeeById(int employeeId);
-        Task<UserResponseDTO> updateEmployeeById(int id, UserRequestDTO userRequestDTO);
+        Task<UserResponseDTO> GetEmployeeById(int? employeeId);
+        Task<UserResponseDTO> UpdateEmployeeById(int id, UserRequestDTO userRequestDTO);
         Task<bool> DeleteEmployeeById(int id);
         
     }

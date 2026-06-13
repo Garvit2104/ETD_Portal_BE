@@ -108,7 +108,7 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
 
         public async Task<int> CalculateBudget(int travelRequestId)
         {
-            var travelRequest = await _travelRequestRepo.getTravelRequestById(travelRequestId);
+            var travelRequest = await _travelRequestRepo.GetTravelRequestById((int?)travelRequestId);
             if (travelRequest == null)
                 throw new KeyNotFoundException($"Travel request with ID {travelRequestId} not found.");
 

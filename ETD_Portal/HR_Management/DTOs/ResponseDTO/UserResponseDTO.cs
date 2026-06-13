@@ -15,6 +15,6 @@
 
         public int? current_grade_id { get; set; }
 
-        public string current_grade_name { get; set; }
+        public string? current_grade_name { get; set; }
     }
 }

@@ -16,5 +16,7 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Interfaces
 
 
         public Task<ReservationResponseDTO> GetReservationDetails(int reservationId);
+
+        Task<BudgetBreakdownResponseDTO> GetBudgetBreakdown(int travelRequestId);
     }
 }

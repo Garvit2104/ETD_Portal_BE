@@ -18,6 +18,6 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Interfaces
 
         public Task<ReimbursementResponseDTO> GetReimbursementDetails(int reimbursementid);
 
-        public  Task<ReimbursementResponseDTO> ProcessReimbursemnet(int reimbursementid, ReimbursementRequestDTO reimburseDTO);
+        public  Task<ReimbursementResponseDTO> ProcessReimbursemnet(int reimbursementid, ReimbursementProcessRequestDTO reimburseProcessDTO);
     }
 }

@@ -7,7 +7,9 @@ namespace ETD_Portal.TravelPlanner.BLL.Interfaces
     {
         public Task<TravelResponseDTO> CreateTravelRequest(TravelRequestDTO travelRequestDTO);
         public Task<IEnumerable<TravelResponseDTO>> GetAllPendingRequests(int hrId);
-        public Task<TravelResponseDTO> GetTravelRequestById(int trid);
-        public Task<TravelResponseDTO> UpdateRequestStatus(int trid, UpdateRequestDTO updateDTO);
+        public Task<TravelResponseDTO> GetTravelRequestById(int? trid);
+
+        Task<TravelRequestDetailsRespDTO> GetTravelRequestDetailsById(int trid);
+        public Task<TravelRequestDetailsRespDTO> UpdateRequestStatus(int trid, UpdateRequestDTO updateDTO);
     }
 }

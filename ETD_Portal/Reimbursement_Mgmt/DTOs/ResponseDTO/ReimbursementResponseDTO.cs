@@ -26,11 +26,6 @@ namespace ETD_Portal.Reimbursement_Mgmt.DTOs.ResponseDTO
 
         public int? invoice_amount { get; set; }
 
-        public string? document_url { get; set; }
-
-        public DateOnly? request_processed_on { get; set; }
-
-        public int? request_processed_by_employee_id { get; set; }
 
         public string? status { get; set; }
 

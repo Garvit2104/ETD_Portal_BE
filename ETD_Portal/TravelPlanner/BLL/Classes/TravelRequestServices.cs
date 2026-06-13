@@ -50,7 +50,7 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
         {
             return new TravelResponseDTO
             {
-                request_id = entity.RequestId,
+                request_id = entity.RequestId?? 0,
                 raised_by_employee_id = entity.RaisedByEmployeeId,
                 to_be_approved_by_hr_id = entity.ToBeApprovedByHrId,
                 request_raised_on = entity.RequestRaisedOn,
@@ -61,6 +61,23 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
                 request_status = entity.RequestStatus,
                 location_name = entity.Location?.Name,
                 request_approved_on = entity.RequestApprovedOn
+            };
+        }
+
+        public static TravelRequestDetailsRespDTO EntityToDetailsRespDto(TravelRequest entity)
+        {
+            return new TravelRequestDetailsRespDTO
+            {
+                request_id = entity.RequestId ?? 0,
+                request_raised_on = entity.RequestRaisedOn,
+                from_date = entity.FromDate ?? DateOnly.MinValue,
+                to_date = entity.ToDate ?? DateOnly.MinValue,
+                request_status = entity.RequestStatus ?? string.Empty,
+                request_approved_on = entity.RequestApprovedOn,
+                location_name = entity.Location?.Name ?? string.Empty,
+                approved_budget = entity.TravelBudgetAllocations?.FirstOrDefault()?.ApprovedBudget,
+                approved_mode_of_travel = entity.TravelBudgetAllocations?.FirstOrDefault()?.ApprovedModeOfTravel,
+                approved_hotel_star_rating = entity.TravelBudgetAllocations?.FirstOrDefault()?.ApprovedHotelStarRating
             };
         }
 
@@ -98,38 +115,47 @@ namespace ETD_Portal.TravelPlanner.BLL.Classes
             return pendingReqList;
         }
 
-        public async Task<TravelResponseDTO> GetTravelRequestById(int trid)
+        public async Task<TravelResponseDTO> GetTravelRequestById(int? trid)
         {
-            var result = await _travelRequestRepo.getTravelRequestById(trid);
+            var result = await _travelRequestRepo.GetTravelRequestById(trid);
             if (result == null)
                 throw new KeyNotFoundException($"No travel request found with ID {trid}.");
             return EntityToResponseDto(result);
         }
 
-        public async Task<TravelResponseDTO> UpdateRequestStatus(int trid, UpdateRequestDTO updateDTO)
+        public async Task<TravelRequestDetailsRespDTO> GetTravelRequestDetailsById(int trid)
         {
-            var result = await _travelRequestRepo.getTravelRequestById(trid);
+            var result = await _travelRequestRepo.GetTravelRequestDetailsById(trid);
             if (result == null)
+                throw new KeyNotFoundException($"No travel request found with ID {trid}.");
+
+            return EntityToDetailsRespDto(result);
+        }
+
+        public async Task<TravelRequestDetailsRespDTO> UpdateRequestStatus(int trid, UpdateRequestDTO updateDTO)
+        {
+            var travelRequestId = await _travelRequestRepo.GetTravelRequestById(trid);
+            if (travelRequestId == null)
                 throw new KeyNotFoundException($"Travel request with ID {trid} not found.");
 
-            if (!result.RequestStatus.Equals("New", StringComparison.OrdinalIgnoreCase))
+            if (!travelRequestId.RequestStatus.Equals("New", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Only travel requests with status 'New' can be updated.");
 
             var validStatuses = new[] { "Approved", "Rejected" };
             if (!validStatuses.Contains(updateDTO.request_status, StringComparer.OrdinalIgnoreCase))
                 throw new ArgumentException("Status must be either Approved or Rejected.");
 
-            result.RequestStatus = updateDTO.request_status;
+            travelRequestId.RequestStatus = updateDTO.request_status;
 
-            if (result.RequestStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
-                result.RequestApprovedOn = DateOnly.FromDateTime(DateTime.Now);
+            if (travelRequestId.RequestStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                travelRequestId.RequestApprovedOn = DateOnly.FromDateTime(DateTime.Now);
 
-            var updatedResult = await _travelRequestRepo.getUpdateRequestStatus(result);
+            var updatedResult = await _travelRequestRepo.getUpdateRequestStatus(travelRequestId);
 
             if (updatedResult.RequestStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                 await _budgetAllocationServices.AddBudgetAllocation(updatedResult);
 
-            return EntityToResponseDto(updatedResult);
+            return EntityToDetailsRespDto(updatedResult);
         }
 
     }

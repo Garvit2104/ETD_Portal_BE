@@ -13,9 +13,11 @@ namespace ETD_Portal.Reservation_Mgmt.DAL.Classes
     public  class ReservationDocRepo : IReservationDocRepo
     {
         private readonly ETDPortalDbContext _context;
-        public ReservationDocRepo(ETDPortalDbContext _context)
+        private readonly ILogger<ReservationDocRepo> _logger;
+        public ReservationDocRepo(ETDPortalDbContext _context, ILogger<ReservationDocRepo> _logger)
         {
             this._context = _context;
+            this._logger = _logger;
         }
 
         public async Task AddReservatonDocs(ReservationDoc docs)
@@ -26,7 +28,25 @@ namespace ETD_Portal.Reservation_Mgmt.DAL.Classes
 
         public async Task<ReservationDoc> GetReservationDocByReservationId(int reservationId)
         {
-            return await _context.ReservationDocs.AsNoTracking().FirstOrDefaultAsync(d => d.ReservationId == reservationId);
+            try
+            {
+                var doc = await _context.ReservationDocs.AsNoTracking().FirstOrDefaultAsync(d => d.ReservationId == reservationId);
+
+                if (doc == null)
+                    throw new KeyNotFoundException($"No document record found for ReservationId {reservationId}");
+
+                _logger.LogInformation("GetReservationDocByReservationId: Found document for ReservationId={ReservationId}", reservationId);
+                return doc;
+            }
+            catch (KeyNotFoundException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetReservationDocByReservationId: Error fetching document for ReservationId={ReservationId}", reservationId);
+                throw;
+            }
         }
     }
 }

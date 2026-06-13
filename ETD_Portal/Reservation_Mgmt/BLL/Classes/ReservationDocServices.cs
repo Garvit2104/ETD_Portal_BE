@@ -67,14 +67,12 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
         {
             var docMeta = await _reservationDocRepo.GetReservationDocByReservationId(reservationId);
 
-            if (docMeta == null)
-                return null;
-
             string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "ReservationDocs");
             string filePath = Path.Combine(uploadsFolder, docMeta.DocumentUrl);
 
             if (!System.IO.File.Exists(filePath))
-                return null;
+                throw new KeyNotFoundException($"Document file not found on disk for ReservationId {reservationId}");
+
             var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
 
             return new DocDownloadDTO

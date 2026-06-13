@@ -6,7 +6,8 @@ namespace ETD_Portal.TravelPlanner.DAL.Interfaces
     {
         Task<TravelRequest> CreateTravelRequest(TravelRequest travelRequest);
         Task<IEnumerable<TravelRequest>> GetAllPendingRequests(int hrId);
-        Task<TravelRequest> getTravelRequestById(int trid);
+        Task<TravelRequest?> GetTravelRequestById(int? trid);
+        Task<TravelRequest?> GetTravelRequestDetailsById(int trid);
         Task<TravelRequest> getUpdateRequestStatus(TravelRequest travelRequest);
     }
 }

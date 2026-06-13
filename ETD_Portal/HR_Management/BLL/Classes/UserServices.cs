@@ -41,8 +41,8 @@ namespace ETD_Portal.HR_Management.BLL.Classes
                 phone_number = user.PhoneNumber,
                 email_address = user.EmailAddress,
                 role = user.Role,
-                current_grade_id = user.CurrentGrade.Id,
-                current_grade_name = user.CurrentGrade?.Name ?? string.Empty
+                current_grade_id = user.CurrentGrade?.Id,
+                current_grade_name = user.CurrentGrade?.Name ?? "Not Assigned"
             };
         }
 
@@ -56,7 +56,8 @@ namespace ETD_Portal.HR_Management.BLL.Classes
                 PhoneNumber = user.phone_number,
                 EmailAddress = user.email_address,
                 Role = user.role,
-                CurrentGradeId = user.current_grade_id
+                CurrentGradeId = user.current_grade_id,
+               
 
             };
         }
@@ -64,6 +65,12 @@ namespace ETD_Portal.HR_Management.BLL.Classes
         // Validates business rules
         private static void ValidateEmployee(UserRequestDTO userRequestDTO)
         {
+            if (string.IsNullOrWhiteSpace(userRequestDTO.password_hash))
+                throw new ArgumentException("Password is required when adding a new employee.");
+
+            if (userRequestDTO.password_hash.Length < 8)
+                throw new ArgumentException("Password must be at least 8 characters.");
+
             if (string.IsNullOrWhiteSpace(userRequestDTO.email_address) ||
                 !userRequestDTO.email_address.EndsWith("@cognizant.com", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Email address must be in the format xxxx@cognizant.com");
@@ -85,6 +92,11 @@ namespace ETD_Portal.HR_Management.BLL.Classes
 
             // Step 2: Map DTO → entity
             var userEntity = MapUserRequestDTOtoEntity(userRequestDTO);
+
+            if (string.IsNullOrWhiteSpace(userRequestDTO.password_hash))
+                throw new ArgumentException("Password is required.");
+
+            userEntity.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequestDTO.password_hash);
 
             // Step 3: TravelDeskExe default grade is Grade-1
             if (userEntity.Role.Equals("TravelDeskExe", StringComparison.OrdinalIgnoreCase))
@@ -114,19 +126,27 @@ namespace ETD_Portal.HR_Management.BLL.Classes
             return userList;
         }
 
-        public async Task<UserResponseDTO> GetEmployeeById(int employeeId)
+        public async Task<UserResponseDTO> GetEmployeeById(int? employeeId)
         {
-            var empData = await userRepo.GetEmployeeById(employeeId);
+            if (employeeId == null)
+                throw new ArgumentNullException(nameof(employeeId), "Employee ID cannot be null.");
+
+            var empData = await userRepo.GetEmployeeById(employeeId.Value);
+            if(empData == null)
+                throw new KeyNotFoundException($"Employee with ID {employeeId} not found.");
             return await MapEntityResponseToUserResponseDTO(empData);
         }
 
-        public async Task<UserResponseDTO> updateEmployeeById(int id, UserRequestDTO userRequestDTO)
+        public async Task<UserResponseDTO> UpdateEmployeeById(int id, UserRequestDTO userRequestDTO)
         {
             // Step 1: Validate
             ValidateEmployee(userRequestDTO);
 
             // Step 2: Fetch existing employee
             var empData = await userRepo.GetEmployeeById(id);
+
+            if (empData == null)
+                throw new KeyNotFoundException($"Employee with ID {id} not found.");
 
             int? currentGradeId = empData.CurrentGradeId;
             int? newGradeId = userRequestDTO.current_grade_id;
@@ -173,7 +193,7 @@ namespace ETD_Portal.HR_Management.BLL.Classes
             }
 
             // Step 6: Save to DB
-            await userRepo.updateEmployeeById(empData);
+            await userRepo.UpdateEmployeeById(empData);
 
             // Step 7: Return response
             return await MapEntityResponseToUserResponseDTO(empData);
@@ -182,7 +202,7 @@ namespace ETD_Portal.HR_Management.BLL.Classes
         public async Task<bool> DeleteEmployeeById(int id)
         {
             var empData = await userRepo.DeleteEmployeeById(id);
-            return await userRepo.DeleteEmployeeById(id);
+            return empData;
         }
     }
 }

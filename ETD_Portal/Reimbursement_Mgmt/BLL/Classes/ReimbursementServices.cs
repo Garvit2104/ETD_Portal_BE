@@ -1,4 +1,5 @@
-﻿using ETD_Portal.HR_Management.BLL.Classes;
+﻿using AutoMapper;
+using ETD_Portal.HR_Management.BLL.Classes;
 using ETD_Portal.HR_Management.BLL.Interfaces;
 using ETD_Portal.HR_Management.DAL.Interfaces;
 using ETD_Portal.Models;
@@ -14,6 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static ETD_Portal.Reservation_Mgmt.BLL.Classes.ReservationDocServices;
 
 namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
 {
@@ -21,20 +23,19 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
     {
         private readonly IReimbursementRepo _reimbursementRepo;
         private readonly IUserServices _userServices;
-        private readonly IUserRepo _userRepo;
-        private readonly ITravelRequestRepo _trRepo;
         private readonly ITravelRequestServices _travelRequestServices;
         private readonly IReimbursementTypeRepo _reimbursementTypeRepo;
-        public ReimbursementServices(IReimbursementRepo _reimbursementRepo, 
-            IUserServices _userServices, ITravelRequestServices _travelRequestServices, 
-            IReimbursementTypeRepo _reimbursementTypeRepo, IUserRepo _userRepo, ITravelRequestRepo _trRepo)
+        private readonly IMapper _mapper;
+        public ReimbursementServices(IReimbursementRepo _reimbursementRepo,IMapper _mapper,
+                                     IUserServices _userServices, ITravelRequestServices _travelRequestServices, 
+                                     IReimbursementTypeRepo _reimbursementTypeRepo)
         {
             this._reimbursementRepo = _reimbursementRepo;
             this._userServices = _userServices;
             this._travelRequestServices = _travelRequestServices;   
             this._reimbursementTypeRepo = _reimbursementTypeRepo;
-            this._userRepo = _userRepo;
-            this._trRepo = _trRepo;
+            this._mapper = _mapper;
+            
         }
 
         public async Task<ReimbursementResponseDTO> AddReimbursement(ReimbursementRequestDTO reimburseRequestDTO)
@@ -42,40 +43,43 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
             // step 1 -> Validate the file
             if (reimburseRequestDTO.document == null || reimburseRequestDTO.document.Length == 0)
             {
-                throw new Exception("File is required");
+                throw new ArgumentException("File is required");
             }
             if (!reimburseRequestDTO.document.ContentType.Equals("application/pdf"))
             {
-                throw new Exception("Only pdf documents are allowed");
+                throw new ArgumentException("Only pdf documents are allowed");
             }
             if (reimburseRequestDTO.document.Length > 256 * 1024)
             {
-                throw new Exception("Document Size must not exceed 256 kb");
+                throw new DocumentSizeLimitExceededException("Document Size must not exceed 256 kb");
             }
             // step 2 -> Valide employee_id
 
-            User employee = await _userRepo.GetEmployeeById(reimburseRequestDTO.request_raised_by_employee_id.GetValueOrDefault());
+            var employee = await _userServices.GetEmployeeById(reimburseRequestDTO.request_raised_by_employee_id);
             if (employee == null)
             {
-                throw new Exception("Invalid employee id");
+                throw new KeyNotFoundException(
+                    $"Employee with ID {reimburseRequestDTO.request_raised_by_employee_id} not found.");
             }
 
             // step 3 -> Validate Invoice Details
-            TravelRequest travelDetails = await _trRepo.getTravelRequestById(reimburseRequestDTO.travel_request_id.GetValueOrDefault());
+            var travelDetails = await _travelRequestServices.GetTravelRequestById(reimburseRequestDTO.travel_request_id);
             if (travelDetails == null)
             {
-                throw new Exception("Invalid travel request id");
+                throw new KeyNotFoundException(
+                      $"Travel request with ID {reimburseRequestDTO.travel_request_id} not found.");
             }
-            DateTime fromDate = travelDetails.FromDate.Value.ToDateTime(TimeOnly.MinValue);
-            DateTime toDate = travelDetails.ToDate.Value.ToDateTime(TimeOnly.MinValue);
+            DateOnly fromDate = travelDetails.from_date.Value;
+            DateOnly toDate = travelDetails.to_date.Value;
 
-            var invoiceDateTime = reimburseRequestDTO.invoice_date.Value.ToDateTime(TimeOnly.MinValue);
-            var validInvoiceDate = fromDate < invoiceDateTime && invoiceDateTime < toDate;
+            DateOnly invoiceDate = reimburseRequestDTO.invoice_date.Value;
+            var validInvoiceDate = fromDate < invoiceDate && invoiceDate < toDate;
 
             if (!validInvoiceDate)
             {
-                throw new Exception("Invoice date must be between from date and to date of travel request");
+                throw new ArgumentException("Invoice date must be between from date and to date of travel request");
             }
+
 
             //  Per Day Expense Validation for Local Travel
             var reimbursementType = await _reimbursementTypeRepo.GetTypeById(reimburseRequestDTO.reimbursement_type_id.GetValueOrDefault());
@@ -83,17 +87,17 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
             if (reimbursementType.Type == "Food-Water")
             {
                 if (reimburseRequestDTO.invoice_amount < 1000 || reimburseRequestDTO.invoice_amount > 1500)
-                    throw new Exception("Invoice amount must be between 1000 and 1500 for Food and Water");
+                    throw new ArgumentException("Invoice amount must be between 1000 and 1500 for Food and Water");
             }
             else if (reimbursementType.Type == "Laundry")
             {
                 if (reimburseRequestDTO.invoice_amount < 250 || reimburseRequestDTO.invoice_amount > 500)
-                    throw new Exception("Invoice amount must be between 250 and 500 for Laundry");
+                    throw new ArgumentException("Invoice amount must be between 250 and 500 for Laundry");
             }
             else if (reimbursementType.Type == "LocalTravel")
             {
                 if (reimburseRequestDTO.invoice_amount > 1000)
-                    throw new Exception("Local travel amount must not exceed 1000 per day");
+                    throw new ArgumentException("Local travel amount must not exceed 1000 per day");
             }
 
             // ====================================================
@@ -102,18 +106,20 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
             // ====================================================
 
             // Generate unique file name to avoid overwriting existing files
+            Random random = new Random();
+            int randomNumber = random.Next(100000, 999999);
             string originalFileName = Path.GetFileNameWithoutExtension(reimburseRequestDTO.document.FileName);
-            string fileName = $"{Guid.NewGuid()}_{reimburseRequestDTO.travel_request_id}_{originalFileName}.pdf";
+            string fileName = $"{randomNumber}_{reimburseRequestDTO.travel_request_id}_{originalFileName}.pdf";
 
             // Build folder path → wwwroot/uploads/reimbursements/
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "reimbursementDocs");
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "reimbursementDocs").Replace("\\", "/");
 
             // Create folder if it does not exist
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
 
             // Combine folder path and file name to get full save path
-            string fullFilePath = Path.Combine(folderPath, fileName);
+            string fullFilePath = Path.Combine(folderPath, fileName).Replace("\\", "/"); ;
 
             // Convert IFormFile to bytes and save physically to disk
             using (var stream = new FileStream(fullFilePath, FileMode.Create))
@@ -123,128 +129,66 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
             }
 
             // Request DTO to Entity
-            ReimbursementRequest reimburseEntity = new ReimbursementRequest();
-            reimburseEntity.RequestRaisedByEmployeeId = reimburseRequestDTO.request_raised_by_employee_id;
-            reimburseEntity.TravelRequestId = reimburseRequestDTO.travel_request_id;
-            reimburseEntity.ReimbursementTypeId = reimburseRequestDTO.reimbursement_type_id;
-            //reimburseEntity.InvoiceNo = reimburseRequestDTO.invoice_no;
-            reimburseEntity.InvoiceDate = reimburseRequestDTO.invoice_date;
-            reimburseEntity.InvoiceAmount = reimburseRequestDTO.invoice_amount;
-            //reimburseEntity.DocumentUrl = fullFilePath;
+            var reimburseEntity = _mapper.Map<ReimbursementRequest>(reimburseRequestDTO);
+
+            reimburseEntity.DocumentUrl = fullFilePath;
             reimburseEntity.RequestDate = DateOnly.FromDateTime(DateTime.Now);
             reimburseEntity.Status = "New";
-            reimburseEntity.RequestProcessedOn = null;
-            reimburseEntity.RequestProcessedByEmployeeId = null;
-            reimburseEntity.Remarks = null;
-
+            
             var saveReimburseEntity = await _reimbursementRepo.AddReimbursement(reimburseEntity);
 
             // Entity to DTO to show response
 
-            ReimbursementResponseDTO reimburseResponseDTO = new ReimbursementResponseDTO
-            {
-                id = saveReimburseEntity.Id,
-                request_raised_by_employee_id = saveReimburseEntity.RequestRaisedByEmployeeId,
-                travel_request_id = saveReimburseEntity.TravelRequestId,
-                reimbursement_type_id = saveReimburseEntity.ReimbursementTypeId,
-                invoice_no = saveReimburseEntity.InvoiceNo,
-                invoice_date = saveReimburseEntity.InvoiceDate,
-                invoice_amount = saveReimburseEntity.InvoiceAmount,
-                document_url = saveReimburseEntity.DocumentUrl,
-                request_date = saveReimburseEntity.RequestDate,
-                status = saveReimburseEntity.Status,
-                remarks = saveReimburseEntity.Remarks
-            };
+            var reimburseResponseDTO = _mapper.Map<ReimbursementResponseDTO>(saveReimburseEntity);
             return reimburseResponseDTO;
         }
 
         public async Task<List<ReimbursementResponseDTO>> GetAllReimbursementRequest(int trid)
         {
             var result = await _reimbursementRepo.GetAllReimbursementRequest(trid);
-            List<ReimbursementResponseDTO> allReimbursementList = new List<ReimbursementResponseDTO>();
-            foreach(var item in result)
-            {
-                ReimbursementResponseDTO reimbursementResponse = new ReimbursementResponseDTO
-                {
-                    id = item.Id,
-                    request_raised_by_employee_id = item.RequestRaisedByEmployeeId,
-                    travel_request_id = item.TravelRequestId,
-                    reimbursement_type_id = item.ReimbursementTypeId,
-                    invoice_date = item.InvoiceDate,
-                    invoice_amount = item.InvoiceAmount,
-                    request_date = item.RequestDate,
-                    status = item.Status,
-                    remarks = item.Remarks
-                };
-                allReimbursementList.Add(reimbursementResponse);
-            }
-            return allReimbursementList;
+            return _mapper.Map<List<ReimbursementResponseDTO>>(result);
         }
 
         public async Task<ReimbursementResponseDTO> GetReimbursementDetails(int reimbursementid)
         {
             var reimburseDetails = await _reimbursementRepo.GetReimbursementDetails(reimbursementid);
-
-            ReimbursementResponseDTO reimburseDetailResponseDTO = new ReimbursementResponseDTO
-            {
-                id = reimburseDetails.Id,
-                request_raised_by_employee_id = reimburseDetails.RequestRaisedByEmployeeId,
-                travel_request_id = reimburseDetails.TravelRequestId,
-                reimbursement_type_id = reimburseDetails.ReimbursementTypeId,
-                invoice_date = reimburseDetails.InvoiceDate,
-                invoice_amount = reimburseDetails.InvoiceAmount,
-                request_date = reimburseDetails.RequestDate,
-                status = reimburseDetails.Status,
-                remarks = reimburseDetails.Remarks
-            };
-
-            return reimburseDetailResponseDTO;
+            return _mapper.Map<ReimbursementResponseDTO>(reimburseDetails);
 
         }
 
-        public async Task<ReimbursementResponseDTO> ProcessReimbursemnet(int reimbursementid, ReimbursementRequestDTO reimburseDTO)
+        public async Task<ReimbursementResponseDTO> ProcessReimbursemnet(int reimbursementid, ReimbursementProcessRequestDTO reimburseProcessDTO)
         {
             var result = await _reimbursementRepo.GetReimbursementDetails(reimbursementid);
-            if(result == null)
-                throw new KeyNotFoundException($"Reimbursement request with ID {reimbursementid} not found.");
-
+            
             if (!result.Status.Equals("New", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Only Reimbursement requests with status 'New' can be updated.");
 
             var validStatuses = new[] { "Approved", "Rejected" };
 
-            if (!validStatuses.Contains(reimburseDTO.status, StringComparer.OrdinalIgnoreCase))
+            if (!validStatuses.Contains(reimburseProcessDTO.status, StringComparer.OrdinalIgnoreCase))
                 throw new ArgumentException("Status must be either Approved or Rejected.");
 
-            result.Status = reimburseDTO.status;
-
-            if (result.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+            if(reimburseProcessDTO.status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Status = "Approved";
+                result.Remarks = null;
+                result.RequestProcessedByEmployeeId = reimburseProcessDTO.request_processed_by_employee_id;
                 result.RequestProcessedOn = DateOnly.FromDateTime(DateTime.Now);
+            }
+            else if(reimburseProcessDTO.status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(reimburseProcessDTO.remarks))
+                    throw new ArgumentException("Remarks are mandatory when rejecteting a reimbursement");
 
-            if (result.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
-                result.Remarks = reimburseDTO.remarks;
+                result.Status = "Rejected";
+                result.Remarks = reimburseProcessDTO.remarks;
+                result.RequestProcessedByEmployeeId = reimburseProcessDTO.request_processed_by_employee_id;
                 result.RequestProcessedOn = DateOnly.FromDateTime(DateTime.Now);
-
-            
+            }
 
             var updatedResult = await _reimbursementRepo.ProcessReimbursemnet(result);
 
-            ReimbursementResponseDTO updatedReimburseDetailResponseDTO = new ReimbursementResponseDTO
-            {
-                id = result.Id,
-                request_raised_by_employee_id = result.RequestRaisedByEmployeeId,
-                travel_request_id = result.TravelRequestId,
-                reimbursement_type_id = result.ReimbursementTypeId,
-                invoice_date = result.InvoiceDate,
-                invoice_amount = result.InvoiceAmount,
-                request_date = result.RequestDate,
-                status = result.Status,
-                remarks = result.Remarks
-            };
-
-            return updatedReimburseDetailResponseDTO;
+            return _mapper.Map<ReimbursementResponseDTO>(updatedResult);
         }
-
-
     }
 }

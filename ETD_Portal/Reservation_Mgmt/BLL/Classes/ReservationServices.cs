@@ -1,4 +1,5 @@
-﻿using ETD_Portal.HR_Management.BLL.Classes;
+﻿using AutoMapper;
+using ETD_Portal.HR_Management.BLL.Classes;
 using ETD_Portal.HR_Management.BLL.Interfaces;
 using ETD_Portal.HR_Management.DTOs.ResponseDTO;
 using ETD_Portal.Models;
@@ -24,7 +25,10 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
         private readonly IUserServices _userServices;
         private readonly ITravelRequestServices _travelRequestServices;
         private readonly IBudgetAllocationServices _budgetAllocationServices;
-        public ReservationServices(IReservationRepo _reservationRepos, IReservationDocRepo _reservationDocs, IReservationTypeServices _reservationTypes, ITravelRequestServices _travelRequestServices, IBudgetAllocationServices _budgetAllocationServices, IUserServices _userServices)
+        private readonly IMapper _mapper;
+        public ReservationServices(IReservationRepo _reservationRepos, IReservationDocRepo _reservationDocs, 
+            IReservationTypeServices _reservationTypes, ITravelRequestServices _travelRequestServices, 
+            IBudgetAllocationServices _budgetAllocationServices, IUserServices _userServices, IMapper _mapper)
         {
             this._reservationRepos = _reservationRepos;
             this._reservationDocs = _reservationDocs;
@@ -32,64 +36,28 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
             this._travelRequestServices = _travelRequestServices;
             this._budgetAllocationServices = _budgetAllocationServices;
             this._userServices = _userServices;
+            this._mapper = _mapper;
         }
 
         public async Task<List<ReservationResponseDTO>> GetReservationByTravelRequestId(int trid)
         {
             var reservations = await _reservationRepos.GetReservationByTravelRequestId(trid);
 
-
-            List<ReservationResponseDTO> result = new List<ReservationResponseDTO>();
-
-            foreach (var item in reservations)
-            {
-                ReservationResponseDTO dto = new ReservationResponseDTO
-                {
-                    id = item.Id,
-                    reservation_done_by_employee_id = item.ReservationDoneByEmployeeId,
-                    travel_request_id = item.TravelRequestId,
-                    reservation_type_id = item.ReservationTypeId,
-                    created_on = item.CreatedOn,
-                    reservation_done_with_entity = item.ReservationDoneWithEntity,
-                    reservation_date = item.ReservationDate,
-                    amount = item.Amount,
-                    remarks = item.Remarks
-                };
-                result.Add(dto);
-            }
-
-            return result;
+            return _mapper.Map<List<ReservationResponseDTO>>(reservations);
 
         }
 
         public async Task<ReservationResponseDTO> GetReservationDetails(int reservationId)
         {
-            var trackingList = await _reservationRepos.GetReservationDetails(reservationId);
+            var reservationDetails = await _reservationRepos.GetReservationDetails(reservationId);
 
-            if (trackingList is null)
-                return null;
-
-            var trackingReservation = new ReservationResponseDTO
-            {
-                id = trackingList.Id,
-                reservation_done_by_employee_id = trackingList.ReservationDoneByEmployeeId,
-                travel_request_id = trackingList.TravelRequestId,
-                reservation_type_id = trackingList.ReservationTypeId,
-                created_on = trackingList.CreatedOn,
-                reservation_done_with_entity = trackingList.ReservationDoneWithEntity,
-                reservation_date = trackingList.ReservationDate,
-                amount = trackingList.Amount,
-                remarks = trackingList.Remarks
-
-            };
-            return trackingReservation;
+            return _mapper.Map<ReservationResponseDTO>(reservationDetails);
 
         }
 
 
         public async Task<ReservationResponseDTO> AddReservation(ReservationRequestDTO addReservationRecord)
         {
-
             if (addReservationRecord is null)
                 throw new ArgumentNullException(nameof(addReservationRecord), "Reservation payload is required.");
 
@@ -107,7 +75,7 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
             if (user == null || !string.Equals(user.role, "TravelDeskExe", StringComparison.OrdinalIgnoreCase))
                 throw new UnauthorizedAccessException("Travel Desk executive can only do reservation");
 
-            // Check is travel request exist
+            // Validate travel request exist
 
             if (!addReservationRecord.travel_request_id.HasValue)
                 throw new ArgumentException("TravelRequestId is required.");
@@ -115,6 +83,7 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
             int travelRequestId = addReservationRecord.travel_request_id.Value;
 
             TravelResponseDTO tr = await _travelRequestServices.GetTravelRequestById(travelRequestId);
+
             if (tr == null)
                 throw new ArgumentException("No Travel Request found for this travelRequestId");
 
@@ -123,8 +92,6 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
                 throw new InvalidOperationException("Travel request is missing FromDate.");
 
             DateOnly fromDate = tr.from_date!.Value;
-
-
             // --- Validate ReservationDate  and ReservatinTypeId  ---
 
             if (!addReservationRecord.reservation_type_id.HasValue)
@@ -160,12 +127,12 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
                 throw new ArgumentException($"{msg}. Expected: {expectedDate:yyyy-MM-dd}");
             }
 
-            // 5-Checking Reservation type rules
+            // 5-Checking Reservation type rules (max 3, no duplicates)
 
             await CheckReservationType(addReservationRecord.reservation_type_id!.Value,
                     addReservationRecord.travel_request_id!.Value);
 
-            // 6 - Budget 
+            // 6 - Budget validation
             int amount = addReservationRecord.amount.Value;
             int approvedBudget = await _budgetAllocationServices.CalculateBudget(travelRequestId);
             int maxTotalAmount = (int)(approvedBudget * 0.7);
@@ -178,50 +145,32 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
 
             if ((typeId == 1 || typeId == 2 || typeId == 3) && amount > maxForTravel)
                 throw new ArgumentOutOfRangeException("amount should be less than " + maxForTravel);
-            else if ((typeId == 4) && amount > maxForCab)
+            else if ((typeId == 5) && amount > maxForCab)
                 throw new ArgumentOutOfRangeException("amount should be less than " + maxForCab);
-            else if (typeId == 5 && amount > maxForHotel)
+            else if (typeId == 4 && amount > maxForHotel)
             {
 
                 throw new Exception("amount should be less than " + maxForHotel);
             }
 
             // ── Step 7: Build and save entity ──
-            var reservationEntity = new Reservation
-            {
-                ReservationDoneByEmployeeId = addReservationRecord.reservation_done_by_employee_id,
-                TravelRequestId = addReservationRecord.travel_request_id,
-                ReservationTypeId = addReservationRecord.reservation_type_id,
-                CreatedOn = DateOnly.FromDateTime(DateTime.Now),
-                ReservationDoneWithEntity = addReservationRecord.reservation_done_with_entity,
-                ReservationDate = addReservationRecord.reservation_date,
-                Amount = addReservationRecord.amount,
-                Remarks = addReservationRecord.remarks
+            
+            var reservationEntity = _mapper.Map<Reservation>(addReservationRecord);
+            reservationEntity.CreatedOn = DateOnly.FromDateTime(DateTime.Now);
 
-            };
+            //Save to DB
 
-            var addedReservation = await _reservationRepos.AddReservations(reservationEntity);
+            var addReservation = await _reservationRepos.AddReservations(reservationEntity);
 
-            // Returning Response back to Client
+            // Returning Mapped response
 
-            ReservationResponseDTO reservationResponse = new ReservationResponseDTO
-            {
-                id = addedReservation.Id,
-                reservation_done_by_employee_id = addedReservation.ReservationDoneByEmployeeId,
-                travel_request_id = addedReservation.TravelRequestId,
-                reservation_type_id = addedReservation.ReservationTypeId,
-                created_on = addedReservation.CreatedOn,
-                reservation_done_with_entity = addReservationRecord.reservation_done_with_entity,
-                reservation_date = addedReservation.ReservationDate,
-                amount = addedReservation.Amount,
-                
-                remarks = addedReservation.Remarks
-            };
-            return reservationResponse;
+            return _mapper.Map<ReservationResponseDTO>(addReservation);
         }
+
+
         public async Task CheckReservationType(int typeId, int travelRequestId)
         {
-            const int Flight = 1, Train = 2, Bus = 3, Cab = 4, Hotel = 5;
+            const int Flight = 1, Train = 3, Bus = 2, Cab = 5, Hotel = 4;
 
             int reservationCount = await _reservationRepos.CountReservationsByTravelRequestId(travelRequestId);
 
@@ -241,6 +190,26 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
 
             if (newIsCab && await _reservationRepos.ExistsReservationOfAnyType(travelRequestId, Cab))
                 throw new InvalidOperationException("A Cab reservation already exists for this travel.");
+        }
+
+        public async Task<BudgetBreakdownResponseDTO> GetBudgetBreakdown(int travelRequestId)
+        {
+            TravelResponseDTO tr = await _travelRequestServices.GetTravelRequestById(travelRequestId);
+            if (tr == null)
+                throw new KeyNotFoundException($"No Travel Request found for TravelRequestId {travelRequestId}");
+
+            int approvedBudget = await _budgetAllocationServices.CalculateBudget(travelRequestId);
+            int maxReservationBudget = (int)(approvedBudget * 0.7);
+
+            return new BudgetBreakdownResponseDTO
+            {
+                travel_request_id = travelRequestId,
+                approved_budget = approvedBudget,
+                max_reservation_budget = maxReservationBudget,
+                max_transport = (int)(maxReservationBudget * 0.4),
+                max_hotel = (int)(maxReservationBudget * 0.5),
+                max_cab = (int)(maxReservationBudget * 0.1)
+            };
         }
     }
 }
