@@ -76,7 +76,7 @@ namespace ETD_Portal.Controllers
                         addReservation.File);
                 }
 
-                return Ok(addedReservation);
+                return StatusCode(201, addedReservation);
             }
             catch (ArgumentNullException ex)
             {

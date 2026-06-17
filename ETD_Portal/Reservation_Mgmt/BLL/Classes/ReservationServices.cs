@@ -69,10 +69,7 @@ namespace ETD_Portal.Reservation_Mgmt.BLL.Classes
 
             var user = await _userServices.GetEmployeeById(employeeId);
 
-            if (user == null)
-               throw new Exception("user not found");
-
-            if (user == null || !string.Equals(user.role, "TravelDeskExe", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(user.role, "TravelDeskExe", StringComparison.OrdinalIgnoreCase))
                 throw new UnauthorizedAccessException("Travel Desk executive can only do reservation");
 
             // Validate travel request exist

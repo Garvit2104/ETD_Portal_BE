@@ -16,7 +16,7 @@ namespace ETD_Portal.Auth_Module.DAL.Interfaces
         Task RevokeRefreshTokenAsync(string token);
         Task RevokeAllUserTokensAsync(int employeeId);
 
-       
+
         Task UpdatePasswordHashAsync(int employeeId, object newHash);
     }
 }

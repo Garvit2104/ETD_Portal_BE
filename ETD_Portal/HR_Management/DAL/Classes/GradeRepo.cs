@@ -20,8 +20,7 @@ namespace ETD_Portal.HR_Management.DAL.Classes
         {
             try
             {
-                var data = this.context.Grades.AsNoTracking().AsEnumerable();
-                return await Task.FromResult(data);
+                return await this.context.Grades.AsNoTracking().ToListAsync();
             }
             catch (Exception ex)
             {

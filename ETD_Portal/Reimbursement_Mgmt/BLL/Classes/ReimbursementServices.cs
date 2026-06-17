@@ -84,6 +84,10 @@ namespace ETD_Portal.Reimbursement_Mgmt.BLL.Classes
             //  Per Day Expense Validation for Local Travel
             var reimbursementType = await _reimbursementTypeRepo.GetTypeById(reimburseRequestDTO.reimbursement_type_id.GetValueOrDefault());
 
+            if (reimbursementType == null)
+                throw new KeyNotFoundException(
+                    $"Reimbursement type with ID {reimburseRequestDTO.reimbursement_type_id} not found.");
+
             if (reimbursementType.Type == "Food-Water")
             {
                 if (reimburseRequestDTO.invoice_amount < 1000 || reimburseRequestDTO.invoice_amount > 1500)

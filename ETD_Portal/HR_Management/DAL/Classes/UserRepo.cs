@@ -99,12 +99,60 @@ namespace ETD_Portal.HR_Management.DAL.Classes
                 if (employee == null)
                     throw new KeyNotFoundException($"Employee with ID {id} not found.");
 
-                var travelRequests = await _context.TravelRequests
+                // Collect all travel request IDs raised by this employee
+                var travelRequestIds = await _context.TravelRequests
                     .Where(tr => tr.RaisedByEmployeeId == id)
+                    .Select(tr => tr.RequestId)
                     .ToListAsync();
-                _context.TravelRequests.RemoveRange(travelRequests);
 
-                // Delete related grade histories first to avoid FK constraint error
+                if (travelRequestIds.Count > 0)
+                {
+                    // ReservationDocs — deepest child, must be removed before Reservations
+                    var reservationIds = await _context.Reservations
+                        .Where(r => travelRequestIds.Contains(r.TravelRequestId))
+                        .Select(r => r.Id)
+                        .ToListAsync();
+
+                    if (reservationIds.Count > 0)
+                    {
+                        var reservationDocs = await _context.ReservationDocs
+                            .Where(d => d.ReservationId != null && reservationIds.Contains(d.ReservationId.Value))
+                            .ToListAsync();
+                        _context.ReservationDocs.RemoveRange(reservationDocs);
+                    }
+
+                    // Reservations
+                    var reservations = await _context.Reservations
+                        .Where(r => travelRequestIds.Contains(r.TravelRequestId))
+                        .ToListAsync();
+                    _context.Reservations.RemoveRange(reservations);
+
+                    // Reimbursement requests
+                    var reimbursements = await _context.ReimbursementRequests
+                        .Where(r => travelRequestIds.Contains(r.TravelRequestId))
+                        .ToListAsync();
+                    _context.ReimbursementRequests.RemoveRange(reimbursements);
+
+                    // Budget allocations
+                    var budgetAllocations = await _context.TravelBudgetAllocations
+                        .Where(b => travelRequestIds.Contains(b.TravelRequestId))
+                        .ToListAsync();
+                    _context.TravelBudgetAllocations.RemoveRange(budgetAllocations);
+
+                    // Travel requests
+                    var travelRequests = await _context.TravelRequests
+                        .Where(tr => travelRequestIds.Contains(tr.RequestId))
+                        .ToListAsync();
+                    _context.TravelRequests.RemoveRange(travelRequests);
+                }
+
+                // Refresh tokens (ClientSetNull behavior won't work without tracking — delete explicitly)
+                var refreshTokens = await _context.RefreshTokens
+                    .Where(rt => rt.EmployeeId == id)
+                    .ToListAsync();
+                _context.RefreshTokens.RemoveRange(refreshTokens);
+
+                // Grade histories (already loaded via Include)
                 _context.GradeHistories.RemoveRange(employee.GradeHistories);
 
                 _context.Users.Remove(employee);

@@ -93,9 +93,6 @@ namespace ETD_Portal.HR_Management.BLL.Classes
             // Step 2: Map DTO → entity
             var userEntity = MapUserRequestDTOtoEntity(userRequestDTO);
 
-            if (string.IsNullOrWhiteSpace(userRequestDTO.password_hash))
-                throw new ArgumentException("Password is required.");
-
             userEntity.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequestDTO.password_hash);
 
             // Step 3: TravelDeskExe default grade is Grade-1
@@ -170,8 +167,19 @@ namespace ETD_Portal.HR_Management.BLL.Classes
                                         .GetAllGradeHistoryByEmployeeId(empData.EmployeeId);
                 var historyList = gradeHistories.OrderBy(gh => gh.AssignedOn).ToList();
 
-                var firstAssignedOn = historyList.First().AssignedOn.Value.ToDateTime(TimeOnly.MinValue);
-                var lastAssignedOn = historyList.Last().AssignedOn.Value.ToDateTime(TimeOnly.MinValue);
+                if (historyList.Count == 0)
+                    throw new InvalidOperationException(
+                        $"No grade history found for employee {id}. Cannot validate grade change rules.");
+
+                var firstEntry = historyList.First();
+                var lastEntry = historyList.Last();
+
+                if (!firstEntry.AssignedOn.HasValue || !lastEntry.AssignedOn.HasValue)
+                    throw new InvalidOperationException(
+                        $"Grade history contains entries with missing dates for employee {id}.");
+
+                var firstAssignedOn = firstEntry.AssignedOn.Value.ToDateTime(TimeOnly.MinValue);
+                var lastAssignedOn = lastEntry.AssignedOn.Value.ToDateTime(TimeOnly.MinValue);
                 var today = DateTime.Now;
 
                 // Rule 1: Must complete 2 years before first grade change
