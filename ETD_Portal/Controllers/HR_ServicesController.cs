@@ -126,10 +126,10 @@ namespace ETD_Portal.Controllers
         }
 
         [HttpPut("employees/{id}")]
-        public async Task<ActionResult<UserResponseDTO>> UpdateEmployeeById(int id, UserRequestDTO userRequestDTO)
+        public async Task<ActionResult<UserResponseDTO>> UpdateEmployeeById(int id, GradeUpdateRequestDTO updateRequestDTO)
         {
             _logger.LogInformation("Update employee request received for {EmployeeId} with proposed grade {ProposedGradeId}",
-                id, userRequestDTO?.current_grade_id);
+                id, updateRequestDTO?.current_grade_id);
 
             try
             {
@@ -139,13 +139,13 @@ namespace ETD_Portal.Controllers
                     return BadRequest("Invalid employee ID.");
                 }
 
-                if (userRequestDTO == null)
+                if (updateRequestDTO == null)
                 {
                     _logger.LogWarning("Update employee called with null request body for {EmployeeId}", id);
                     return BadRequest("Employee data cannot be null.");
                 }
 
-                var result = await _userService.UpdateEmployeeById(id, userRequestDTO);
+                var result = await _userService.UpdateEmployeeById(id, updateRequestDTO);
                 return Ok(result);
             }
             catch (ArgumentException ex)

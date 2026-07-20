@@ -134,10 +134,9 @@ namespace ETD_Portal.HR_Management.BLL.Classes
             return await MapEntityResponseToUserResponseDTO(empData);
         }
 
-        public async Task<UserResponseDTO> UpdateEmployeeById(int id, UserRequestDTO userRequestDTO)
+        public async Task<UserResponseDTO> UpdateEmployeeById(int id, GradeUpdateRequestDTO updateRequestDTO)
         {
-            // Step 1: Validate
-            ValidateEmployee(userRequestDTO);
+            
 
             // Step 2: Fetch existing employee
             var empData = await userRepo.GetEmployeeById(id);
@@ -146,19 +145,19 @@ namespace ETD_Portal.HR_Management.BLL.Classes
                 throw new KeyNotFoundException($"Employee with ID {id} not found.");
 
             int? currentGradeId = empData.CurrentGradeId;
-            int? newGradeId = userRequestDTO.current_grade_id;
+            int? newGradeId = updateRequestDTO.current_grade_id;
 
             // Step 3: Check downgrade — Grade-1 is highest so newGradeId > currentGradeId means downgrade
             if (newGradeId > currentGradeId)
                 throw new ArgumentException("Employee grade cannot be downgraded.");
 
             // Step 4: Update fields
-            empData.FirstName = userRequestDTO.first_name;
-            empData.LastName = userRequestDTO.last_name;
-            empData.PhoneNumber = userRequestDTO.phone_number;
-            empData.EmailAddress = userRequestDTO.email_address;
-            empData.Role = userRequestDTO.role;
-            empData.CurrentGradeId = userRequestDTO.current_grade_id;
+            empData.FirstName = updateRequestDTO.first_name;
+            empData.LastName = updateRequestDTO.last_name;
+            empData.PhoneNumber = updateRequestDTO.phone_number;
+            empData.EmailAddress = updateRequestDTO.email_address;
+            empData.Role = updateRequestDTO.role;
+            empData.CurrentGradeId = updateRequestDTO.current_grade_id;
 
             // Step 5: Grade history rules if grade changed
             if (newGradeId != currentGradeId)
