@@ -54,9 +54,27 @@
                     .ReadFrom.Configuration(context.Configuration)
                     .ReadFrom.Services(services)
                     .Enrich.FromLogContext());
+                
+                var connectionString = builder.Configuration.GetConnectionString("ETDPortalDb");    
+                
+                if(string.IsNullOrWhiteSpace(connectionString))
+                    throw new InvalidOperationException("Connection string 'ETD_PortalDb' not configured. " + "Set the connectionString in appsettings.json or environment variables.");
 
-                builder.Services.AddDbContext<ETDPortalDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("ETDPortalDb")));
+                var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
+                if (string.IsNullOrWhiteSpace(jwtSecretKey))
+                    throw new InvalidOperationException("JWT secret key not configured. " + "Set the 'Jwt:SecretKey' in appsettings.json or environment variables.");
+                if(Encoding.UTF8.GetByteCount(jwtSecretKey) < 32)
+                throw new InvalidOperationException("JWT : secret key must be at least 32 bytes (256 bits) long for HMACSHA256. " + "Set a longer 'Jwt:SecretKey' in appsettings.json or environment variables.");
+                throw new InvalidOperationException("JWT : secret key must be at least 32 bytes (256 bits) long for HMACSHA256. " + "Set a longer 'Jwt:SecretKey' in appsettings.json or environment variables.");
+
+            builder.Services.AddDbContext<ETDPortalDbContext>(options =>
+                options.UseSqlServer(connectionString, sql =>
+                {
+                    sql.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                }));
 
                 builder.Services.AddAutoMapper(cfg =>
                 {
