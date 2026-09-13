@@ -58,14 +58,19 @@
                 var connectionString = builder.Configuration.GetConnectionString("ETDPortalDb");    
                 
                 if(string.IsNullOrWhiteSpace(connectionString))
-                    throw new InvalidOperationException("Connection string 'ETD_PortalDb' not configured. " + "Set the connectionString in appsettings.json or environment variables.");
+                    throw new InvalidOperationException(
+                        "Connection string 'ETD_PortalDb' not configured. " +
+                        "Set the connectionString__ETD_PortalDb environment variables.");
 
                 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
+
                 if (string.IsNullOrWhiteSpace(jwtSecretKey))
-                    throw new InvalidOperationException("JWT secret key not configured. " + "Set the 'Jwt:SecretKey' in appsettings.json or environment variables.");
+                    throw new InvalidOperationException(
+                        "JWT secret key not configured. " + 
+                        "Set the 'Jwt__SecretKey' in environment variables.");
+
                 if(Encoding.UTF8.GetByteCount(jwtSecretKey) < 32)
-                throw new InvalidOperationException("JWT : secret key must be at least 32 bytes (256 bits) long for HMACSHA256. " + "Set a longer 'Jwt:SecretKey' in appsettings.json or environment variables.");
-                throw new InvalidOperationException("JWT : secret key must be at least 32 bytes (256 bits) long for HMACSHA256. " + "Set a longer 'Jwt:SecretKey' in appsettings.json or environment variables.");
+                    throw new InvalidOperationException("JWT :secretkey must be at least 32 bytes (256 bits) long for HMACSHA256. ");
 
             builder.Services.AddDbContext<ETDPortalDbContext>(options =>
                 options.UseSqlServer(connectionString, sql =>
