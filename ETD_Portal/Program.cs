@@ -70,7 +70,7 @@
                         "Set the 'Jwt__SecretKey' in environment variables.");
 
                 if(Encoding.UTF8.GetByteCount(jwtSecretKey) < 32)
-                    throw new InvalidOperationException("JWT :secretkey must be at least 32 bytes (256 bits) long for HMACSHA256. ");
+                    throw new InvalidOperationException("JWT :secretkey must be at least 32 bytes (256 bits) long for HMACSHA256.");
 
             builder.Services.AddDbContext<ETDPortalDbContext>(options =>
                 options.UseSqlServer(connectionString, sql =>
