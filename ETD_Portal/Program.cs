@@ -211,14 +211,11 @@
                         "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
                 });
 
-                // Configure the HTTP request pipeline.
-                if (app.Environment.IsDevelopment())
-                {
-                    app.UseSwagger();
-                    app.UseSwaggerUI();
-                }
+            // Configure the HTTP request pipeline.
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
-                app.UseHttpsRedirection();
+            app.UseHttpsRedirection();
                 app.UseCors("AllowReactApp");
                 app.UseAuthentication();
                 app.UseAuthorization();
