@@ -38,13 +38,13 @@ namespace ETD_Portal.Shared.Middleware
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var key = Encoding.UTF8.GetBytes(
                     context.RequestServices
-                           .GetRequiredService<IConfiguration>()["Jwt:SecretKey"]);
+                           .GetRequiredService<IConfiguration>()["Jwt:SecretKey"]); 
 
                 // Validate the token
                 tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    IssuerSigningKey = new SymmetricSecurityKey(key) { KeyId = "ETD_Portal_Key" },
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidIssuer = context.RequestServices
