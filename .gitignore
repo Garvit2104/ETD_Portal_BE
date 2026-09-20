@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Local Environment Secrets (Keep these on your laptops, out of GitHub)
+appsettings.Development.json
+appsettings.Production.json
